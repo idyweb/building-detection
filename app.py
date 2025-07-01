@@ -298,15 +298,15 @@ def main():
                         if coordinates_data:
                             st.markdown("### 🎯 Detection Results")
                             
-                            col_vis1, col_vis2 = st.columns(2)
+                            col_orig, col_detect = st.columns(2)
                             
-                            with col_vis1:
-                                st.image(image, caption="Original Image", use_column_width=True)
+                            with col_orig:
+                                st.image(image, caption="📷 Original Image", use_column_width=True)
                             
-                            with col_vis2:
+                            with col_detect:
                                 detection_image = draw_bounding_boxes(image, coordinates_data)
-                                st.image(detection_image, caption=f"Detected Buildings ({buildings_count})", use_column_width=True)
-                        
+                                st.image(detection_image, caption=f"🎯 Detected Buildings ({buildings_count})", use_column_width=True)
+                                                
                         # Download section
                         st.markdown('<div class="download-section">', unsafe_allow_html=True)
                         st.markdown("### 🗺️ **Download Results**")
