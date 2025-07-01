@@ -14,6 +14,8 @@ from PIL import Image
 import numpy as np
 import base64
 from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+import io
 
 # Your API configuration
 API_BASE_URL = "http://35.227.159.142:8000"
@@ -79,6 +81,35 @@ def check_api_health():
         return response.status_code == 200
     except:
         return False
+    
+def draw_bounding_boxes(image, coordinates_data):
+    """Draw bounding boxes on image"""
+    draw_image = image.copy()
+    draw = ImageDraw.Draw(draw_image)
+    
+    colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF']
+    
+    for i, building in enumerate(coordinates_data):
+        color = colors[i % len(colors)]
+        bbox = building['bbox']
+        
+        # Draw bounding box
+        draw.rectangle(bbox, outline=color, width=3)
+        
+        # Draw label
+        label = f"{building['building_id']}\n{building['area_sqm']:.0f}m²"
+        
+        # Position text
+        text_x, text_y = bbox[0], bbox[1] - 30 if bbox[1] > 30 else bbox[1] + 5
+        
+        # Draw text with background
+        try:
+            font = ImageFont.load_default()
+            draw.text((text_x, text_y), label, fill=color, font=font)
+        except:
+            draw.text((text_x, text_y), label, fill=color)
+    
+    return draw_image
 
 def upload_image_to_api(image_file):
     """Upload image to your API and get job ID"""
@@ -262,6 +293,19 @@ def main():
                         with col2c:
                             total_area = results.get('total_area_sqm', 0)
                             st.metric("📐 Total Area", f"{total_area:.0f} m²")
+                            
+                        coordinates_data = results.get('building_coordinates', [])
+                        if coordinates_data:
+                            st.markdown("### 🎯 Detection Results")
+                            
+                            col_vis1, col_vis2 = st.columns(2)
+                            
+                            with col_vis1:
+                                st.image(image, caption="Original Image", use_column_width=True)
+                            
+                            with col_vis2:
+                                detection_image = draw_bounding_boxes(image, coordinates_data)
+                                st.image(detection_image, caption=f"Detected Buildings ({buildings_count})", use_column_width=True)
                         
                         # Download section
                         st.markdown('<div class="download-section">', unsafe_allow_html=True)
