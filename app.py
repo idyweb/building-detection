@@ -17,7 +17,7 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-Image.MAX_IMAGE_PIXELS = None
+# Image.MAX_IMAGE_PIXELS = None
 
 # Your API configuration
 API_BASE_URL = "http://35.227.159.142:8000"
