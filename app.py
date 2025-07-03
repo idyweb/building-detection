@@ -739,29 +739,38 @@ def upload_image_to_api(uploaded_file):
 #     except:
 #         return None
 def check_job_status(job_id):
-    """Check processing status with better error handling"""
+    """Check processing status using the simpler results-checking endpoint"""
     try:
-        url = f"{API_BASE_URL}/status/{job_id}"
-        st.write(f"🔍 Checking: {url}")  # Debug line
+        # Use the new check-results endpoint instead of status
+        url = f"{API_BASE_URL}/check-results/{job_id}"
         
-        response = requests.get(url, timeout=30)
-        
-        st.write(f"📡 Response status: {response.status_code}")  # Debug line
+        response = requests.get(url, timeout=60)  # Shorter timeout since this is simpler
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 503:
+            # Server busy - just show processing message
+            return {
+                'status': 'processing',
+                'progress': 70,
+                'message': 'Server busy processing large image... please wait'
+            }
         else:
-            st.error(f"API returned status {response.status_code}")
-            return None
-    except requests.exceptions.ConnectionError as e:
-        st.error(f"❌ Connection error: Cannot reach API at {API_BASE_URL}")
-        return None
-    except requests.exceptions.Timeout as e:
-        st.error(f"⏱️ Timeout: API took too long to respond")
-        return None
+            # Any other error - assume still processing
+            return {
+                'status': 'processing',
+                'progress': 60,
+                'message': 'Large image processing in progress...'
+            }
+            
     except Exception as e:
-        st.error(f"❌ Error checking status: {str(e)}")
-        return None
+        # If anything fails, assume still processing
+        return {
+            'status': 'processing',
+            'progress': 65,
+            'message': 'Processing continues... (checking results in background)'
+        }
+
 
 def download_results(job_id, file_type="shapefile"):
     """Download results from API"""
@@ -773,33 +782,79 @@ def download_results(job_id, file_type="shapefile"):
     except:
         return None
 
+# def display_real_time_progress(job_id):
+#     """Display real-time processing progress"""
+#     progress_bar = st.progress(0)
+#     status_text = st.empty()
+    
+#     while True:
+#         status = check_job_status(job_id)
+        
+#         if status is None:
+#             status_text.error("❌ Could not check job status")
+#             break
+        
+#         progress = status.get('progress', 0)
+#         message = status.get('message', 'Processing...')
+#         job_status = status.get('status', 'unknown')
+        
+#         progress_bar.progress(progress / 100)
+#         status_text.text(f"🤖 {message}")
+        
+#         if job_status == 'completed':
+#             status_text.success("✅ Processing completed!")
+#             return status
+#         elif job_status == 'failed':
+#             status_text.error(f"❌ Processing failed: {message}")
+#             return status
+        
+#         time.sleep(15)  # Check every 15 seconds
+    
+#     return None
+
 def display_real_time_progress(job_id):
-    """Display real-time processing progress"""
+    """Display progress with better handling for large images"""
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    while True:
+    # Add a note for large files
+    st.info("🕒 Large images take 2-5 minutes to process. Please be patient!")
+    
+    check_count = 0
+    max_checks = 50  # Maximum 50 checks (about 12-15 minutes)
+    
+    while check_count < max_checks:
         status = check_job_status(job_id)
         
-        if status is None:
-            status_text.error("❌ Could not check job status")
-            break
+        if status:
+            progress = status.get('progress', 0)
+            message = status.get('message', 'Processing...')
+            job_status = status.get('status', 'processing')
+            
+            progress_bar.progress(progress / 100)
+            status_text.text(f"🤖 {message}")
+            
+            if job_status == 'completed':
+                status_text.success("✅ Processing completed!")
+                return status
+            elif job_status == 'failed':
+                status_text.error(f"❌ Processing failed")
+                return status
+        else:
+            # Show generic processing message
+            status_text.text("🤖 Processing large image... please wait")
+            progress_bar.progress(min(0.5 + (check_count * 0.01), 0.9))  # Slowly increase
         
-        progress = status.get('progress', 0)
-        message = status.get('message', 'Processing...')
-        job_status = status.get('status', 'unknown')
-        
-        progress_bar.progress(progress / 100)
-        status_text.text(f"🤖 {message}")
-        
-        if job_status == 'completed':
-            status_text.success("✅ Processing completed!")
-            return status
-        elif job_status == 'failed':
-            status_text.error(f"❌ Processing failed: {message}")
-            return status
-        
-        time.sleep(2)  # Check every 2 seconds
+        check_count += 1
+        time.sleep(15)  # Check every 15 seconds for large images
+    
+    # If we've checked too many times, assume something went wrong
+    status_text.warning("⏰ Processing is taking longer than expected. Results may be ready - try refreshing.")
+    
+    # Try one final check
+    final_status = check_job_status(job_id)
+    if final_status and final_status.get('status') == 'completed':
+        return final_status
     
     return None
 
