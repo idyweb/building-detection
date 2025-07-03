@@ -729,14 +729,38 @@ def upload_image_to_api(uploaded_file):
         st.error(f"Upload error: {str(e)}")
         return None
 
+# def check_job_status(job_id):
+#     """Check processing status"""
+#     try:
+#         response = requests.get(f"{API_BASE_URL}/status/{job_id}", timeout=30)
+#         if response.status_code == 200:
+#             return response.json()
+#         return None
+#     except:
+#         return None
 def check_job_status(job_id):
-    """Check processing status"""
+    """Check processing status with better error handling"""
     try:
-        response = requests.get(f"{API_BASE_URL}/status/{job_id}", timeout=30)
+        url = f"{API_BASE_URL}/status/{job_id}"
+        st.write(f"🔍 Checking: {url}")  # Debug line
+        
+        response = requests.get(url, timeout=30)
+        
+        st.write(f"📡 Response status: {response.status_code}")  # Debug line
+        
         if response.status_code == 200:
             return response.json()
+        else:
+            st.error(f"API returned status {response.status_code}")
+            return None
+    except requests.exceptions.ConnectionError as e:
+        st.error(f"❌ Connection error: Cannot reach API at {API_BASE_URL}")
         return None
-    except:
+    except requests.exceptions.Timeout as e:
+        st.error(f"⏱️ Timeout: API took too long to respond")
+        return None
+    except Exception as e:
+        st.error(f"❌ Error checking status: {str(e)}")
         return None
 
 def download_results(job_id, file_type="shapefile"):
