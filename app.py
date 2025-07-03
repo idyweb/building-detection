@@ -732,7 +732,7 @@ def upload_image_to_api(uploaded_file):
 def check_job_status(job_id):
     """Check processing status"""
     try:
-        response = requests.get(f"{API_BASE_URL}/status/{job_id}")
+        response = requests.get(f"{API_BASE_URL}/status/{job_id}", timeout=30)
         if response.status_code == 200:
             return response.json()
         return None
